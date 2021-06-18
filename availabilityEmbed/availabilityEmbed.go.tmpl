@@ -12,6 +12,7 @@
     "emojiReset" "🔄"
 
     "showFieldInline" true
+    "resendOnUpdate" false
 ) }}
 
 {{ $fieldValueAvailable := $settings.fieldValueEmpty }}
@@ -56,6 +57,16 @@
     ) }}
 {{ end }}
 
+{{ define "createEmbed" }}
+    {{ $embed := cembed .embedDict }}
+
+    {{ $messageId := sendMessageRetID nil $embed }}
+
+    {{ range .emojiSet }}
+        {{ addMessageReactions nil $messageId . }}
+    {{ end }}
+{{ end }}
+
 {{ define "updateLists" }}
     {{/* TARGET */}}
     {{/* replace entirely if empty */}}
@@ -89,13 +100,10 @@
         "away" $fieldValueAway
     ) }}
 
-    {{ $embed := cembed $embedDict.result }}
-
-    {{ $messageId := sendMessageRetID nil $embed }}
-
-    {{ range $emojiSet }}
-        {{ addMessageReactions nil $messageId . }}
-    {{ end }}
+    {{ template "createEmbed" (sdict
+        "embedDict" $embedDict.result
+        "emojiSet" $emojiSet
+    ) }}
 
     {{ deleteTrigger 0 }}
 
@@ -151,8 +159,19 @@
                 "away" $fieldValueAway
             ) }}
 
-            {{ editMessage nil $reactMessageId (complexMessageEdit "embed" $embedDict.result) }}
-            {{ deleteMessageReaction nil $reactMessageId $reactUserId $reactEmoji }}
+            {{ if $settings.resendOnUpdate }}
+                {{ deleteMessage nil $reactMessageId 0 }}
+
+                {{ template "createEmbed" (sdict
+                    "embedDict" $embedDict.result
+                    "emojiSet" $emojiSet
+                ) }}
+
+            {{ else }}
+                {{/* update in place */}}
+                {{ editMessage nil $reactMessageId (complexMessageEdit "embed" $embedDict.result) }}
+                {{ deleteMessageReaction nil $reactMessageId $reactUserId $reactEmoji }}
+            {{ end }}
         {{ end }}
     {{ end }}
 {{ end }}
