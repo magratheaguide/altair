@@ -1,0 +1,41 @@
+{{/*
+    Protected Reaction Emoji
+    Trigger Type: Reaction, Added only
+
+    To get emoji identifiers, type \:emoji:
+*/}}
+
+{{ $settings := (sdict
+    "allowedRoles" (cslice
+        831976600073404486
+    )
+    "protectedEmoji" (cslice
+        "mod_check:840258374926073936"
+        "mod_uncheck:840258375018741831"
+    )
+    "showWarning" false
+) }}
+
+{{ $reactionEmoji := .Reaction.Emoji }}
+{{ $reactionEmojiDeleteFormat := printf "%s:%d" $reactionEmoji.Name $reactionEmoji.ID }}
+{{ $reactionEmojiSendFormat := printf ":%s:%d" $reactionEmoji.Name $reactionEmoji.ID }}
+
+{{ if in $settings.protectedEmoji $reactionEmojiDeleteFormat }}
+    {{ $roles := (getMember .Reaction.UserID).Roles }}
+    {{ $allowed := false }}
+
+    {{ range $roles }}
+        {{ if in $settings.allowedRoles . }}
+            {{ $allowed = true }}
+        {{ end }}
+    {{ end }}
+
+    {{ if not $allowed }}
+        {{ deleteMessageReaction nil .Reaction.MessageID .Reaction.UserID $reactionEmojiDeleteFormat }}
+
+        {{ if $settings.showWarning }}
+            {{ $warningID := sendMessageRetID nil (printf "Sorry, <%s> reactions are reserved for staff use" $reactionEmojiSendFormat) }}
+            {{ deleteMessage nil $warningID 5 }}
+        {{ end }}
+    {{ end }}
+{{ end }}
