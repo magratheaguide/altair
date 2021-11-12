@@ -46,5 +46,5 @@ Lastly, staff can move any queued question to the "done" status (shown by the de
 
 1. In the YAGPDB dashboard for your server, go to the `Core/Custom Commands` panel
 1. Create a new group of commands. Call it something like `Q&A`
-1. Create new commands within this group, one for each of the command files in this directory. The required types and suggested names for the commands are included in comments at the top of each file
+1. Create new commands within this group, one for each of the files in the [`commands`](commands) directory. The required types and suggested names for the commands are included in comments at the top of each file
 1. When you create a command, it's given an ID number. The commands in this set call each other and so need to know their own ID numbers and the IDs of other commands in the group. Edit the lines at the start of each command called `$thisCmd` and things like `$extractCmd` to match the actual IDs you end up with
