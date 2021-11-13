@@ -1,0 +1,183 @@
+{{/*
+    Availability Embed
+    Name: availabilityEmbed
+    Trigger Type: Command
+*/}}
+
+{{ $settings := (sdict
+    "title" "Staff In/Out"
+    "color" 12426513
+    "description" "Which staff members are currently available to help?"
+
+    "fieldNameAvailable" "Ready to Help!"
+    "fieldNameAway" "Away"
+    "fieldValueEmpty" "(none)"
+
+    "emojiAvailable" "✅"
+    "emojiAway" "🛑"
+    "emojiReset" "🔄"
+
+    "showFieldInline" true
+    "resendOnUpdate" false
+) }}
+
+{{ $fieldValueAvailable := $settings.fieldValueEmpty }}
+{{ $fieldValueAway := $settings.fieldValueEmpty }}
+
+{{ $emojiSet := cslice
+    $settings.emojiAvailable
+    $settings.emojiAway
+    $settings.emojiReset
+}}
+
+{{ $reactMessageId := .ExecData.messageId }}
+{{ $reactEmoji := .ExecData.emoji }}
+{{ $isReactionAdded := .ExecData.isReactionAdded }}
+{{ $reactUserId := .ExecData.userId }}
+{{ $reactUser := userArg $reactUserId }}
+
+{{ define "embedDict" }}
+    {{ $fieldAvailable := (sdict
+        "name" .settings.fieldNameAvailable
+        "value" .available
+        "inline" .settings.showFieldInline
+    ) }}
+
+    {{ $fieldAway := (sdict
+        "name" .settings.fieldNameAway
+        "value" .away
+        "inline" .settings.showFieldInline
+    ) }}
+
+    {{ $fields := (cslice
+            $fieldAvailable
+            $fieldAway
+        )
+    }}
+
+    {{ .Set "result" (sdict
+        "title" .settings.title
+        "color" .settings.color
+        "description" .settings.description
+        "fields" $fields
+    ) }}
+{{ end }}
+
+{{ define "createEmbed" }}
+    {{ $embed := cembed .embedDict }}
+
+    {{ $messageId := sendMessageRetID nil $embed }}
+
+    {{ range .emojiSet }}
+        {{ addMessageReactions nil $messageId . }}
+    {{ end }}
+{{ end }}
+
+{{ define "updateLists" }}
+    {{/* TARGET */}}
+    {{/* replace entirely if empty */}}
+    {{ if eq .targetList .settings.fieldValueEmpty }}
+        {{ .Set "targetList" .targetUser.Mention }}
+
+    {{/* else keep existing and add to */}}
+    {{ else }}
+        {{ $split := split .targetList "\n" }}
+
+        {{ if not (in $split .targetUser.Mention )}}
+            {{ .Set "targetList" (joinStr "\n" $split .targetUser.Mention) }}
+        {{ end }}
+    {{ end }}
+
+    {{/* OPPOSITE */}}
+    {{ .Set "oppositeList" (reReplace .targetUser.Mention .oppositeList "") }}
+    {{ .Set "oppositeList" (reReplace "\n{2,}" .oppositeList "\n") }}
+
+    {{/* if no names remaining, set to empty value */}}
+    {{ if not .oppositeList }}
+        {{ .Set "oppositeList" .settings.fieldValueEmpty }}
+    {{ end }}
+{{ end }}
+
+{{/* initial setup */}}
+{{ if not .ExecData }}
+    {{ template "embedDict" ($embedDict := sdict
+        "settings" $settings
+        "available" $fieldValueAvailable
+        "away" $fieldValueAway
+    ) }}
+
+    {{ template "createEmbed" (sdict
+        "embedDict" $embedDict.result
+        "emojiSet" $emojiSet
+    ) }}
+
+    {{ deleteTrigger 0 }}
+
+{{/* update existing embed, if present, based on expected emojis */}}
+{{ else if and (in $emojiSet $reactEmoji) ($isReactionAdded) }}
+    {{ $reactMessage := getMessage nil $reactMessageId }}
+
+    {{ range $index, $embed := $reactMessage.Embeds }}
+        {{/* if applicable embed found */}}
+        {{ if eq $embed.Title $settings.title }}
+            {{/* get current field values */}}
+            {{ range $embed.Fields }}
+                {{ if eq .Name $settings.fieldNameAvailable }}
+                    {{ $fieldValueAvailable = .Value }}
+                {{ else if eq .Name $settings.fieldNameAway }}
+                    {{ $fieldValueAway = .Value }}
+                {{ end }}
+            {{ end }}
+
+            {{/* change available */}}
+            {{ if eq $reactEmoji $settings.emojiAvailable }}
+                {{ template "updateLists" ($lists := sdict
+                    "targetList" $fieldValueAvailable
+                    "oppositeList" $fieldValueAway
+                    "targetUser" $reactUser
+                    "settings" $settings
+                ) }}
+
+                {{ $fieldValueAvailable = $lists.targetList }}
+                {{ $fieldValueAway = $lists.oppositeList }}
+
+            {{/* change away */}}
+            {{ else if eq $reactEmoji $settings.emojiAway }}
+                {{ template "updateLists" ($lists := sdict
+                    "targetList" $fieldValueAway
+                    "oppositeList" $fieldValueAvailable
+                    "targetUser" $reactUser
+                    "settings" $settings
+                ) }}
+
+                {{ $fieldValueAvailable = $lists.oppositeList }}
+                {{ $fieldValueAway = $lists.targetList }}
+
+            {{/* reset */}}
+            {{ else if eq $reactEmoji $settings.emojiReset }}
+                {{ $fieldValueAvailable = $settings.fieldValueEmpty }}
+                {{ $fieldValueAway = $settings.fieldValueEmpty }}
+            {{ end }}
+
+            {{ template "embedDict" ($embedDict := sdict
+                "settings" $settings
+                "available" $fieldValueAvailable
+                "away" $fieldValueAway
+            ) }}
+
+            {{ if $settings.resendOnUpdate }}
+                {{ deleteMessage nil $reactMessageId 0 }}
+
+                {{ template "createEmbed" (sdict
+                    "embedDict" $embedDict.result
+                    "emojiSet" $emojiSet
+                ) }}
+
+            {{ else }}
+                {{/* update in place */}}
+                {{ editMessage nil $reactMessageId (complexMessageEdit "embed" $embedDict.result) }}
+                {{ deleteMessageReaction nil $reactMessageId $reactUserId $reactEmoji }}
+            {{ end }}
+        {{ end }}
+    {{ end }}
+{{ end }}

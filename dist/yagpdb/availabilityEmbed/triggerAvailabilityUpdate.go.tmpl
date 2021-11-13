@@ -1,0 +1,20 @@
+{{/*
+    Trigger Availability Update
+    Name: triggerAvailabilityUpdate
+    Trigger Type: Reaction, Added and Removed
+*/}}
+
+{{ $thisCmd := 2 }}
+{{ $embedCmd := 1 }}
+
+{{ $messageId := .Reaction.MessageID }}
+{{ $emoji := .Reaction.Emoji.Name }}
+{{ $isReactionAdded := .ReactionAdded }}
+{{ $userId := .Reaction.UserID }}
+
+{{ execCC $embedCmd nil 0 (sdict
+    "messageId" $messageId
+    "emoji" $emoji
+    "isReactionAdded" $isReactionAdded
+    "userId" $userId
+) }}
