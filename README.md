@@ -6,7 +6,7 @@ Collection of custom commands for various Discord bots, including YAGPDB.
 
 Though this repo may grow to contain custom commands for other Discord bots, for now the only bot around is [YAGPDB](https://yagpdb.xyz).
 
-If you have an idea for changes, updates, or even a new set of custom commands entirely that you'd like to share with the community, please know that **[contributions are welcome](https://github.com/rp-magrathea/altair/contribute)**!
+If you have an idea for changes, updates, or even a new set of custom commands entirely that you'd like to share with the community, please know that **[contributions are welcome](https://github.com/magratheaguide/altair/contribute)**!
 
 ## Why YAGPDB?
 
